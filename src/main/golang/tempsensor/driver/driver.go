@@ -17,9 +17,9 @@ type sensordriver struct {
 }
 
 type SensorReading struct {
-	SensorId    string
-	Temperature float32
-	Humidity    float32
+	SensorId    string  `json:"sensorId"`
+	Temperature float32 `json:"temperature"`
+	Humidity    float32 `json:"humidity"`
 }
 
 func NewSensorDriver(gpio int) *sensordriver {

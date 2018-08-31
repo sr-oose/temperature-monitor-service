@@ -9,7 +9,7 @@ public class SensorDataController {
 	
 	@PostMapping("/reading")
 	public void acceptSensorReading(@RequestBody SensorReading reading) {
-		System.out.printf("SensorId: %s, Temperature: %f, Humidity: %f\n", reading.SensorId, reading.Temperature, reading.Humidity);
+		System.out.printf("SensorId: %s, Temperature: %f, Humidity: %f\n", reading.sensorId, reading.temperature, reading.humidity);
 	}
 
 }
