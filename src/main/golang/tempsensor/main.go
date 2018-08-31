@@ -1,63 +1,38 @@
 package main
 
 import (
+	"log"
 	"tempsensor/driver"
-	"fmt"
-	"bytes"
-	"encoding/json"
-	"net/http"
+	"tempsensor/restclient"
+	"tempsensor/signalhandler"
 	"time"
-	"syscall"
-	"os"
-	"os/signal"
 )
 
-var httpClient = http.Client{
-		Timeout: time.Duration(5 * time.Second),
-	}
+var restClient = restclient.NewRestClient("http://localhost:8080/reading")
+var sensorDriver = driver.NewSimulatedSensorDriver(gpio)
 
-const timeformat = "2006-01-02 15:04:05"
+const gpio = 4
 
-func readSensorAndPost() (bool){
-	temperature, humidity, err := driver.ReadTemperatureAndHumidity()
+func readSensorAndPost() error {
+	//sensorDriver := driver.NewSensorDriver(gpio)
+	reading, err := sensorDriver.ReadTemperatureAndHumidity()
 	if err != nil {
-		return false
+		return err
 	}
-	fmt.Printf("[%s] Temperature = %v*C, Humidity = %v%%\n", time.Now().Format(timeformat), temperature, humidity)
-	jsonData := map[string]float32{"temperature": temperature, "humidity": humidity}
-	jsonValue, _ := json.Marshal(jsonData)
-	_, err = httpClient.Post("http://192.168.1.100:8080/reading", "application/json", bytes.NewBuffer(jsonValue))
-	//fmt.Printf("Response:\n%s\n",response)
-	if err != nil {
-		return false
-	}
-	return true
+	log.Printf("temperature = %v*C, humidity = %v%%\n", reading.Temperature, reading.Humidity)
+	_, err = restClient.PostAsJSON(reading)
+	return err
 }
-
-func signalHandler() {
-	signalChan := make(chan os.Signal)
-	signal.Notify(signalChan, syscall.SIGTERM)
-	signal.Notify(signalChan, syscall.SIGINT)
-	go func() {
-		sig := <- signalChan
-		fmt.Printf("%s caught signal: %+v\nTerminating in 2 seconds\n", time.Now().Format(timeformat), sig)
-		time.Sleep(2 * time.Second)
-		os.Exit(0)
-	}()
-}
-
 
 func main() {
-	driver.InitSensorDriver()
-	go signalHandler()
-
-	for ; true ; {
-		success := readSensorAndPost()
-		if success {
-			fmt.Printf("[%s] sensor read and post succeeded\n", time.Now().Format(timeformat))
+	signalhandler.SetupSignalHandler()
+	for true {
+		err := readSensorAndPost()
+		if err == nil {
+			log.Printf("sensor read and post succeeded\n")
 			time.Sleep(5 * time.Second)
 		} else {
-			fmt.Printf("[%s] sensor read or http post failed, waiting 30 seconds before retry\n", time.Now().Format(timeformat))
+			log.Printf("sensor read or http post failed, waiting 30 seconds before retry\n")
 			time.Sleep(30 * time.Second)
 		}
 	}
